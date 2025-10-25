@@ -20,40 +20,118 @@ class Postgres:
         )
         self.conn.autocommit = True  # convenient for simple reads/writes
 
+    def __enter__(self): return self
+    def __exit__(self, *exc): self.close()
+
     def close(self):
         if self.conn and not self.conn.closed:
             self.conn.close()
 
-    def __enter__(self): return self
-    def __exit__(self, *exc): self.close()
+    def query_builder(
+        self,
+        sql_text: str | None = None, *,
+        schema: str | None = None,
+        table: str | None = None,
+        alias: str | None = None,
+        columns="*",
+        distinct: bool = False,
+        joins: list[dict] | None = None,
+        where: str | None = None,
+        group_by: list[str] | None = None,
+        having: str | None = None,
+        order_by: list[str] | None = None,
+        limit: int | None = None,
+        offset: int | None = None,
+        ctes: dict[str, str] | None = None,
+        params=None
+    ) -> pd.DataFrame:
+        if sql_text:
+            return self.query_df(sql_text, params=params)
+        if not table:
+            raise ValueError("table is required when using builder mode")
 
-    def query_df(self, query: str, params=None) -> pd.DataFrame:
+        def _ident(*parts):
+            return sql.SQL(".").join(sql.Identifier(p) for p in parts if p)
+
+        def _column_list(cols):
+            if cols == "*" or cols is None:
+                return sql.SQL("*")
+            if isinstance(cols, str):
+                return sql.SQL(cols)
+            out = []
+            for c in cols:
+                if isinstance(c, tuple):
+                    out.append(_ident(*c))
+                elif isinstance(c, str):
+                    out.append(sql.SQL(c))
+                else:
+                    raise TypeError(f"Unsupported column type: {type(c)}")
+            return sql.SQL(", ").join(out)
+
+        with_sql = sql.SQL("")
+        if ctes:
+            cte_parts = [
+                sql.SQL("{} AS ({})").format(sql.Identifier(name), sql.SQL(cte_sql))
+                for name, cte_sql in ctes.items()
+            ]
+            with_sql = sql.SQL("WITH ") + sql.SQL(", ").join(cte_parts) + sql.SQL(" ")
+
+        select_head = sql.SQL("SELECT ") + (sql.SQL("DISTINCT ") if distinct else sql.SQL(""))
+        select_cols = _column_list(columns)
+
+        from_core = _ident(schema, table)
+        from_sql = (
+            sql.SQL(" FROM {} AS {}").format(from_core, sql.Identifier(alias))
+            if alias else
+            sql.SQL(" FROM {}").format(from_core)
+        )
+
+        # === JOIN block (fixed) ===
+        join_sql = sql.SQL("")
+        if joins:
+            chunks = []
+            for j in joins:
+                jtype   = (j.get("type") or "INNER").upper()
+                jschema = j.get("schema")
+                jtable  = j["table"]
+                jalias  = j.get("alias")
+                jon     = j["on"]
+
+                jfrom = _ident(jschema, jtable)
+
+                if jalias:
+                    chunks.append(
+                        sql.SQL(" {} JOIN {} AS {} ON ").format(
+                            sql.SQL(jtype), jfrom, sql.Identifier(jalias)
+                        ) + sql.SQL(jon)
+                    )
+                else:
+                    chunks.append(
+                        sql.SQL(" {} JOIN {} ON ").format(
+                            sql.SQL(jtype), jfrom
+                        ) + sql.SQL(jon)
+                    )
+            join_sql = sql.Composed(chunks)
+
+        where_sql  = sql.SQL(" WHERE ") + sql.SQL(where) if where else sql.SQL("")
+        group_sql  = sql.SQL("")
+        if group_by:
+            group_sql = sql.SQL(" GROUP BY ") + sql.SQL(", ").join(sql.SQL(x) for x in group_by)
+        having_sql = sql.SQL(" HAVING ") + sql.SQL(having) if having else sql.SQL("")
+        order_sql  = sql.SQL("")
+        if order_by:
+            order_sql = sql.SQL(" ORDER BY ") + sql.SQL(", ").join(sql.SQL(x) for x in order_by)
+        limit_sql  = sql.SQL(" LIMIT {}").format(sql.Literal(limit)) if isinstance(limit, int) else sql.SQL("")
+        offset_sql = sql.SQL(" OFFSET {}").format(sql.Literal(offset)) if isinstance(offset, int) else sql.SQL("")
+
+        query = (
+            with_sql +
+            select_head + select_cols +
+            from_sql + join_sql + where_sql + group_sql + having_sql + order_sql + limit_sql + offset_sql
+        )
+
         with self.conn.cursor() as cur:
             cur.execute(query, params or ())
-            rows = cur.fetchall()
-            cols = [c.name for c in cur.description]
-        return pd.DataFrame(rows, columns=cols)
-
-    def query_simple(self, schema=None, table=None, fields="*", where=None, params=None, limit=None) -> pd.DataFrame:
-        if fields == "*":
-            fields_sql = sql.SQL("*")
-        elif isinstance(fields, (list, tuple)):
-            fields_sql = sql.SQL(", ").join(sql.Identifier(c) for c in fields)
-        else:
-            fields_sql = sql.SQL(fields)
-
-        from_sql = (
-            sql.SQL(" FROM {}.{}").format(sql.Identifier(schema), sql.Identifier(table))
-            if schema else sql.SQL(" FROM {}").format(sql.Identifier(table))
-        )
-        where_sql = sql.SQL("")
-        if where: where_sql = sql.SQL(" WHERE ") + sql.SQL(where)
-        limit_sql = sql.SQL("")
-        if isinstance(limit, int): limit_sql = sql.SQL(" LIMIT {}").format(sql.Literal(limit))
-
-        q = sql.SQL("SELECT ").join([sql.SQL(""), fields_sql]) + from_sql + where_sql + limit_sql
-        with self.conn.cursor() as cur:
-            cur.execute(q, params or ())
             rows = cur.fetchall()
             cols = [c.name for c in cur.description]
         return pd.DataFrame(rows, columns=cols)

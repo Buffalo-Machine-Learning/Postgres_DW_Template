@@ -11,7 +11,7 @@ import atexit
 db = Postgres()
 atexit.register(db.close)
 
-out = db.query_simple(schema="common", table="IngestionLog", limit=5)
+out = db.query_builder(schema="common", table="IngestionLog", limit=5)
 
 print(type(out))
 print(out.describe())
