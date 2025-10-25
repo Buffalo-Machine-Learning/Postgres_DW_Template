@@ -3,3 +3,4 @@ PyYAML
 psycopg_pool 
 python-dotenv
 pandas
+requests

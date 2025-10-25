@@ -27,6 +27,13 @@ class Postgres:
         if self.conn and not self.conn.closed:
             self.conn.close()
 
+    def query_df(self, sql_text: str, params=None) -> pd.DataFrame:
+        with self.conn.cursor() as cur:
+            cur.execute(sql_text, params or ())
+            rows = cur.fetchall()
+            cols = [c.name for c in cur.description]
+        return pd.DataFrame(rows, columns=cols)
+
     def query_builder(
         self,
         sql_text: str | None = None, *,
