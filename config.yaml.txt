@@ -1,0 +1,11 @@
+# used to provide postgres configuration for local development
+postgres:
+  host:
+  port:
+  database:
+  user:
+  password:
+  sslmode:              # disable | require | verify-full | prefer
+  pool:
+    min_size:
+    max_size:

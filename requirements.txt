@@ -1,0 +1,5 @@
+psycopg[binary]
+PyYAML
+psycopg_pool 
+python-dotenv
+pandas

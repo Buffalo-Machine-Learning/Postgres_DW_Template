@@ -1,0 +1,6 @@
+-- SCHEMA: common
+
+-- DROP SCHEMA IF EXISTS common ;
+
+CREATE SCHEMA IF NOT EXISTS common
+    AUTHORIZATION postgres;
