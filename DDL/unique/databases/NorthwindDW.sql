@@ -1,4 +1,4 @@
-CREATE DATABASE postgres
+CREATE DATABASE NorthwindDW
     WITH
     OWNER = postgres
     ENCODING = 'UTF8'

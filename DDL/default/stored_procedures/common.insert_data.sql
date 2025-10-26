@@ -1,32 +1,55 @@
--- stored proc to insert data into a specified table and update the IngestionLog
-
 CREATE OR REPLACE PROCEDURE common.insert_data(
-    p_schema_name VARCHAR,
-    p_table_name VARCHAR,
-    p_data JSONB,
-    p_source_name VARCHAR
+    p_schema    text,
+    p_table     text,
+    p_temp_table text,    -- temp table that already exists in session
+    _columns    text[],   -- columns to INSERT in order
+    p_source    text
 )
 LANGUAGE plpgsql
 AS $$
 DECLARE
-    v_start_time TIMESTAMP WITH TIME ZONE;
-    v_end_time TIMESTAMP WITH TIME ZONE;
-    v_import_count BIGINT;
-    v_update_count BIGINT;
+    v_start timestamptz := clock_timestamp();
+    v_end   timestamptz;
+    v_relid regclass := format('%I.%I', p_schema, p_table)::regclass;
+    v_cols_sql text;
+    v_sql text;
+    v_count bigint;
 BEGIN
-    v_start_time := now();
+    IF _columns IS NULL OR array_length(_columns,1) IS NULL THEN
+        RAISE EXCEPTION 'Caller must provide _columns (text[]) listing target columns in the desired order';
+    END IF;
 
-    -- Insert data into the target table
-    EXECUTE format('INSERT INTO %I.%I SELECT * FROM jsonb_to_recordset($1) AS x(%s)',
-                   p_schema_name, p_table_name, p_data)
-    USING p_data;
+    -- Build the comma-separated column list for INSERT, adding timestamp columns
+    SELECT string_agg(format('%I', c), ', ')
+      INTO v_cols_sql
+      FROM unnest(_columns) AS t(c);
 
-    v_end_time := now();
-    v_import_count := (SELECT COUNT(*) FROM jsonb_to_recordset(p_data) AS x);
-    v_update_count := 0;
+    -- Insert from temp table into target using provided column order plus timestamps
+    v_sql := format(
+        'INSERT INTO %s ("DATE_IN", "DATE_MODIFIED", %s) SELECT CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, %s FROM %I',
+        v_relid,                             -- schema.table
+        v_cols_sql,                          -- column list for target
+        v_cols_sql,                          -- select same column names from temp table
+        p_temp_table                         -- temp table identifier
+    );
 
-    -- Log the ingestion
-    INSERT INTO common."IngestionLog" ("DATE_IN", "DATE_MODIFIED", "SOURCE_NAME", "SCHEMA_NAME", "TABLE_NAME", "StartTime", "EndTime", "ImportCount", "UpdateCount", "Status", "ErrorMessage")
-    VALUES (v_start_time, v_end_time, p_source_name, p_schema_name, p_table_name, v_start_time, v_end_time, v_import_count, v_update_count, B'1', NULL);
+    EXECUTE v_sql;
+    GET DIAGNOSTICS v_count = ROW_COUNT;
+
+    v_end := clock_timestamp();
+
+    INSERT INTO common."IngestionLog"
+        ("DATE_IN","DATE_MODIFIED","SOURCE_NAME","SCHEMA_NAME","TABLE_NAME",
+         "StartTime","EndTime","ImportCount","UpdateCount","Status","ErrorMessage")
+    VALUES (v_start, v_end, p_source, p_schema, p_table,
+            v_start, v_end, v_count, 0, TRUE, NULL);
+EXCEPTION WHEN OTHERS THEN
+    v_end := clock_timestamp();
+    INSERT INTO common."IngestionLog"
+        ("DATE_IN","DATE_MODIFIED","SOURCE_NAME","SCHEMA_NAME","TABLE_NAME",
+         "StartTime","EndTime","ImportCount","UpdateCount","Status","ErrorMessage")
+    VALUES (v_start, v_end, p_source, p_schema, p_table,
+            v_start, v_end, 0, 0, FALSE, SQLERRM);
+    RAISE;
 END;
 $$;

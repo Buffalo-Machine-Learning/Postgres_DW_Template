@@ -1,6 +1,5 @@
-psycopg[binary]
+psycopg2-binary
 PyYAML
-psycopg_pool 
 python-dotenv
 pandas
 requests
