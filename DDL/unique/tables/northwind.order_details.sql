@@ -9,5 +9,5 @@ CREATE TABLE IF NOT EXISTS northwind.order_details
     ProductId INT NOT NULL,
     UnitPrice NUMERIC(10,4) NOT NULL,
     Quantity INT NOT NULL,
-    Discount REAL NOT NULL,
+    Discount REAL NOT NULL
 );

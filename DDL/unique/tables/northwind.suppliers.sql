@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS northwind.suppliers
     "DATE_IN" timestamp with time zone NOT NULL DEFAULT now(),
     "DATE_MODIFIED" timestamp with time zone NOT NULL DEFAULT now(),
     "dw_supplier_id" SERIAL PRIMARY KEY,
-    SupplierId INT PRIMARY KEY,
+    SupplierId INT,
     CompanyName VARCHAR(40) NOT NULL,
     ContactName VARCHAR(30),
     ContactTitle VARCHAR(30),

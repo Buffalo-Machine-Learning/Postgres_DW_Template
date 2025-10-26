@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS northwind.orders
 (
     "DATE_IN" timestamp with time zone NOT NULL DEFAULT now(),
     "DATE_MODIFIED" timestamp with time zone NOT NULL DEFAULT now(),
-+    "dw_order_id" SERIAL PRIMARY KEY,
+    "dw_order_id" SERIAL PRIMARY KEY,
     OrderId INT NOT NULL,
     CustomerId VARCHAR(5) NOT NULL,
     EmployeeId INT NOT NULL,
