@@ -1,4 +1,4 @@
-CREATE DATABASE NorthwindDW
+CREATE DATABASE "NorthwindDW"
     WITH
     OWNER = postgres
     ENCODING = 'UTF8'
@@ -8,6 +8,3 @@ CREATE DATABASE NorthwindDW
     TABLESPACE = pg_default
     CONNECTION LIMIT = -1
     IS_TEMPLATE = False;
-
-COMMENT ON DATABASE postgres
-    IS 'default administrative connection database';

@@ -7,21 +7,37 @@ import io
 import uuid
 
 class Postgres:
-    def __init__(self, host=None, port=None, database=None, user=None, password=None):
+    def __init__(self, 
+        host=None, 
+        port=None, 
+        database=None, 
+        user=None, 
+        password=None,
+        database_builder=False
+    ):    
+        
         # fill missing from config.yaml
         if not all([host, port, database, user, password]):
             with open("config.yaml", "r", encoding="utf-8") as f:
                 pg = (yaml.safe_load(f) or {}).get("postgres", {})
             host     = host     or pg.get("host", "127.0.0.1")
             port     = port     or pg.get("port", 5432)
-            database = database or pg.get("database", "postgres")
             user     = user     or pg.get("user", "postgres")
             password = password or pg.get("password", "")
+            
+            if database_builder:
+                database = 'postgres'
+            else:
+                database = database or pg.get("database", "postgres")
 
-        self.conn = psycopg2.connect(
-            host=host, port=port, dbname=database, user=user, password=password
-        )
-        self.conn.autocommit = True  # convenient for simple reads/writes
+            self.conn = psycopg2.connect(
+                host=host, 
+                port=port, 
+                dbname=database, 
+                user=user, 
+                password=password
+            )
+            self.conn.autocommit = True  # convenient for simple reads/writes
 
     def __enter__(self): return self
     def __exit__(self, *exc): self.close()
@@ -40,7 +56,8 @@ class Postgres:
     def run_ddl(self, ddl_file: str):
         with open(ddl_file, "r", encoding="utf-8") as f:
             ddl_sql = f.read()
-        with self.conn  .cursor() as cur:
+            
+        with self.conn.cursor() as cur:
             cur.execute(ddl_sql)
 
     def _to_text(self, x: Any):
