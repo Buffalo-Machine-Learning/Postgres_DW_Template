@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS common."IngestionLog"
     "UpdateCount" bigint NOT NULL,
     "Status" BOOLEAN NOT NULL,
     "ErrorMessage" text,
+    "Type" character varying(50) NOT NULL,
     CONSTRAINT "IngestionLog_pkey" PRIMARY KEY ("INGESTION_LOG_ID")
 )
 

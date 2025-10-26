@@ -66,13 +66,29 @@ class Postgres:
             return None
         return str(x)
 
+    def truncate_table(
+        self,
+        schema: str,
+        table: str,
+        source: str = "unknown"
+    ):
+        """
+        Truncate the specified table and reload it with new data using stored proc
+        """
+        with self.conn.cursor() as cur:
+            cur.execute(
+                "CALL common.truncate_table(%s, %s, %s);",
+                (schema, table, source)
+            )
+        
+
     def insert_data(
-    self,
-    schema: str,
-    table: str,
-    data: pd.DataFrame,
-    source: str = "unknown",
-    batch_size: int = 10_000
+        self,
+        schema: str,
+        table: str,
+        data: pd.DataFrame,
+        source: str = "unknown",
+        batch_size: int = 10_000
     ):
         """
         Insert data from a DataFrame into the specified table in batches using COPY into a temp table

@@ -4,9 +4,27 @@ import atexit
 class ETLRunner:
     def __init__(self, source_class, dest_class):
         self.source = source_class()
+        self.source_name = source_class.__name__
         self.dest = dest_class()
         atexit.register(self.source.close)
         atexit.register(self.dest.close)
+
+    def truncate_reload(self, 
+        schema: str, 
+        table_name: str, 
+        source_query: str, 
+        batch_size: int = 10000):
+
+        # truncate destination table
+        self.dest.truncate_table(schema, table_name, self.source_name)
+
+        # run insert
+        self.insert_latest(
+            schema=schema,
+            table_name=table_name,
+            source_query=source_query,
+            batch_size=batch_size
+        )
 
     def insert_latest(self,
         schema: str,
@@ -31,9 +49,9 @@ class ETLRunner:
             schema, 
             table_name,
             data,
-            source=self.source.__class__.__name__,
+            source=self.source_name,
             batch_size=batch_size
         )
 
-        print(f"Inserted {len(data)} records into {schema}.{table_name} from {self.source.__class__.__name__}")
-        
+        print(f"Inserted {len(data)} records into {schema}.{table_name} from {self.source_name}.")
+

@@ -11,10 +11,9 @@ from etl_runner import ETLRunner
 if __name__ == "__main__":
     runner = ETLRunner(Northwind, Postgres)
     
-    runner.insert_latest(
+    runner.truncate_reload(
         schema="northwind",
         table_name="customers",
         source_query="SELECT * FROM Customers",
-        max_field="customerid",
         batch_size=5000
     )

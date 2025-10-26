@@ -2,7 +2,7 @@ CREATE OR REPLACE PROCEDURE common.insert_data(
     p_schema    text,
     p_table     text,
     p_temp_table text,    -- temp table that already exists in session
-    _columns    text[],   -- columns to INSERT in order
+    p_columns    text[],   -- columns to INSERT in order
     p_source    text
 )
 LANGUAGE plpgsql
@@ -15,14 +15,14 @@ DECLARE
     v_sql text;
     v_count bigint;
 BEGIN
-    IF _columns IS NULL OR array_length(_columns,1) IS NULL THEN
-        RAISE EXCEPTION 'Caller must provide _columns (text[]) listing target columns in the desired order';
-    END IF;
+        IF p_columns IS NULL OR array_length(p_columns,1) IS NULL THEN
+                RAISE EXCEPTION 'Caller must provide p_columns (text[]) listing target columns in the desired order';
+        END IF;
 
-    -- Build the comma-separated column list for INSERT, adding timestamp columns
-    SELECT string_agg(format('%I', c), ', ')
-      INTO v_cols_sql
-      FROM unnest(_columns) AS t(c);
+        -- Build the comma-separated column list for INSERT, adding timestamp columns
+        SELECT string_agg(format('%I', c), ', ')
+            INTO v_cols_sql
+            FROM unnest(p_columns) AS t(c);
 
     -- Insert from temp table into target using provided column order plus timestamps
     v_sql := format(
@@ -40,16 +40,16 @@ BEGIN
 
     INSERT INTO common."IngestionLog"
         ("DATE_IN","DATE_MODIFIED","SOURCE_NAME","SCHEMA_NAME","TABLE_NAME",
-         "StartTime","EndTime","ImportCount","UpdateCount","Status","ErrorMessage")
+         "StartTime","EndTime","ImportCount","UpdateCount","Status","ErrorMessage", "Type")
     VALUES (v_start, v_end, p_source, p_schema, p_table,
-            v_start, v_end, v_count, 0, TRUE, NULL);
+            v_start, v_end, v_count, 0, TRUE, NULL, 'INSERT');
 EXCEPTION WHEN OTHERS THEN
     v_end := clock_timestamp();
     INSERT INTO common."IngestionLog"
         ("DATE_IN","DATE_MODIFIED","SOURCE_NAME","SCHEMA_NAME","TABLE_NAME",
-         "StartTime","EndTime","ImportCount","UpdateCount","Status","ErrorMessage")
+         "StartTime","EndTime","ImportCount","UpdateCount","Status","ErrorMessage", "Type")
     VALUES (v_start, v_end, p_source, p_schema, p_table,
-            v_start, v_end, 0, 0, FALSE, SQLERRM);
+            v_start, v_end, 0, 0, FALSE, SQLERRM, 'INSERT');
     RAISE;
 END;
 $$;
