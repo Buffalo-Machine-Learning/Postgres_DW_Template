@@ -142,3 +142,10 @@ class Postgres:
             rows = cur.fetchall()
             cols = [c.name for c in cur.description]
         return pd.DataFrame(rows, columns=cols)
+
+    def run_ddl(self, ddl_file: str):
+        with open(ddl_file, "r", encoding="utf-8") as f:
+            ddl_sql = f.read()
+        with self.conn.cursor() as cur:
+            cur.execute(ddl_sql)
+        
