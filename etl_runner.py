@@ -1,18 +1,39 @@
-"""
-Built to follow SSIS conventions
-"""
-import sys
-sys.dont_write_bytecode = True # Prevent .pyc files
-
 import pandas as pd
-from postgres_wrapper import Postgres
 import atexit
 
-db = Postgres()
-atexit.register(db.close)
+class ETLRunner:
+    def __init__(self, source_class, dest_class):
+        self.source = source_class()
+        self.dest = dest_class()
+        atexit.register(self.source.close)
+        atexit.register(self.dest.close)
 
-out = db.query_builder(schema="common", table="IngestionLog", limit=5)
+    def insert_latest(self,
+        schema: str,
+        table_name: str,
+        source_query: str,
+        max_field: str | None = None,
+        batch_size: int = 10000):
+        
+        # extract data from souce, optionally filtering for latest records
+        if max_field:
+            max_value = self.dest.get_max_value(schema, table_name, max_field)
+            if max_value is not None:
+                source_query += f" WHERE {max_field} > '{max_value}'"
 
-print(type(out))
-print(out.describe())
-print(out.head())
+        data = self.source.query(source_query)
+
+        print(data.describe(include='all'))
+        print(data.head())
+
+        # load data into destination
+        self.dest.insert_data(
+            schema, 
+            table_name,
+            data,
+            source=self.source.__class__.__name__,
+            batch_size=batch_size
+        )
+
+        print(f"Inserted {len(data)} records into {schema}.{table_name} from {self.source.__class__.__name__}")
+        

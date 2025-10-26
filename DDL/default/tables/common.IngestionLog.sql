@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS common."IngestionLog"
     "EndTime" timestamp with time zone NOT NULL,
     "ImportCount" bigint NOT NULL,
     "UpdateCount" bigint NOT NULL,
-    "Status" bit NOT NULL,
+    "Status" BOOLEAN NOT NULL,
     "ErrorMessage" text,
     CONSTRAINT "IngestionLog_pkey" PRIMARY KEY ("INGESTION_LOG_ID")
 )
