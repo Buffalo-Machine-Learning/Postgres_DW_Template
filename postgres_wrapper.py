@@ -148,4 +148,72 @@ class Postgres:
             ddl_sql = f.read()
         with self.conn.cursor() as cur:
             cur.execute(ddl_sql)
+
+    def insert_data(
+        self,
+        schema: str,
+        table: str,
+        data: pd.DataFrame,
+        source: str = "unknown",
+        batch_size: int = 10000
+    ):
+        """Insert data from a DataFrame into the specified table in batches using insert_data stored procedure."""
+        if data.empty:
+            return
+
+        with self.conn.cursor() as cur:
+            for start in range(0, len(data), batch_size):
+                end = start + batch_size
+                batch = data.iloc[start:end]
+                records = batch.to_dict(orient="records")
+                cur.execute(
+                    sql.SQL("CALL common.insert_data(%s, %s, %s, %s);"),
+                    (schema, table, source, psycopg.Json(records))
+                )
+
+    def update_data(
+        self,
+        schema: str,
+        table: str,
+        data: pd.DataFrame,
+        source: str = "unknown",
+        batch_size: int = 10000
+    ):
+        """Update data in the specified table from a DataFrame in batches using update_data stored procedure."""
+        if data.empty:
+            return
+
+        with self.conn.cursor() as cur:
+            for start in range(0, len(data), batch_size):
+                end = start + batch_size
+                batch = data.iloc[start:end]
+                records = batch.to_dict(orient="records")
+                cur.execute(
+                    sql.SQL("CALL common.update_data(%s, %s, %s, %s);"),
+                    (schema, table, source, psycopg.Json(records))
+                )
+
+    def upsert_data(
+        self,
+        schema: str,
+        table: str,
+        data: pd.DataFrame,
+        source: str = "unknown",
+        batch_size: int = 10000
+    ):
+        """Upsert data in the specified table from a DataFrame in batches using upsert_data stored procedure."""
+        if data.empty:
+            return
+
+        with self.conn.cursor() as cur:
+            for start in range(0, len(data), batch_size):
+                end = start + batch_size
+                batch = data.iloc[start:end]
+                records = batch.to_dict(orient="records")
+                cur.execute(
+                    sql.SQL("CALL common.upsert_data(%s, %s, %s, %s);"),
+                    (schema, table, source, psycopg.Json(records))
+                )
+
         
+
