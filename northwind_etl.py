@@ -13,7 +13,15 @@ if __name__ == "__main__":
     
     runner.truncate_reload(
         schema="northwind",
-        table_name="customers",
+        table_name="Customers",
         source_query="SELECT * FROM Customers",
+        batch_size=5000
+    )
+
+    runner.insert_latest(
+        schema="northwind",
+        table_name="Orders",
+        source_query="SELECT * FROM Orders",
+        max_field="OrderID",
         batch_size=5000
     )

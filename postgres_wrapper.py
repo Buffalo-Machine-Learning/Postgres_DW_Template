@@ -97,8 +97,36 @@ class Postgres:
         if data is None or data.empty:
             return
 
-        # Use the DataFrame's column order for the proc's _columns parameter (lowercase)
-        columns: List[str] = [str(c).lower() for c in data.columns]
+        # query table columns to validate against DataFrame
+        table_cols = self.query_builder(
+            schema="information_schema",
+            table="columns",
+            columns=["column_name"],
+            where="table_schema = %s AND table_name = %s",
+            params=(schema, table)
+        )
+
+        # remove s for plural table names
+        if table.endswith('s'):
+            dw_id_name = f"DW_{table[:-1].upper()}_ID"
+        else:
+            dw_id_name = f"DW_{table.upper()}_ID"
+
+        table_col_set = set(table_cols["column_name"].tolist())
+        table_col_set -= {dw_id_name, "DATE_MODIFIED", "DATE_IN"}  # exclude DW surrogate key if present
+
+        df_col_set = set(map(str, data.columns))
+
+        missing_cols = table_col_set - df_col_set
+        
+        # drop missing columns from table_col_set
+        if missing_cols:
+            print(f"Warning: DataFrame is missing columns {missing_cols} required by {schema}.{table}. These will be skipped.")
+            table_col_set = table_col_set - missing_cols
+
+        data = data[[c for c in data.columns if c in table_col_set]]
+
+        columns: List[str] = [str(c) for c in data.columns]
 
         # Save current autocommit state
         old_autocommit = self.conn.autocommit
@@ -133,9 +161,8 @@ class Postgres:
                         )
                         cur.execute(create_temp_sql)
                         
-                        # Prepare DataFrame for COPY: lowercase column names and correct ordering
+                        # Prepare DataFrame for COPY: column names and correct ordering
                         df_copy = batch.copy()
-                        df_copy.columns = [str(c).lower() for c in df_copy.columns]
                         df_copy = df_copy[columns]
 
                         # Write CSV into an in-memory buffer; use '\N' to represent NULLs for Postgres COPY
@@ -224,11 +251,18 @@ class Postgres:
                 )
 
     def get_max_value(self, schema: str, table: str, field: str):
-        self.query_builder(
+        df = self.query_builder(
             schema=schema,
             table=table,
             aggregates={ "max_value": ("max", field) }
         )
+
+        if pd.api.types.is_integer_dtype(df["max_value"]):
+            return int(df.at[0, "max_value"]) if not df.empty else None
+        elif pd.api.types.is_float_dtype(df["max_value"]):
+            return float(df.at[0, "max_value"]) if not df.empty else None
+
+        return df.at[0, "max_value"] if not df.empty else None
 
     def query_builder(
         self,

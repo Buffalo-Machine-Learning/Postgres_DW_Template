@@ -36,13 +36,16 @@ class ETLRunner:
         # extract data from souce, optionally filtering for latest records
         if max_field:
             max_value = self.dest.get_max_value(schema, table_name, max_field)
+
             if max_value is not None:
-                source_query += f" WHERE {max_field} > '{max_value}'"
+                if isinstance(max_value, int) or isinstance(max_value, float):
+                    source_query += f" WHERE {max_field} > {max_value}"
+                else:
+                    source_query += f" WHERE {max_field} > '{max_value}'"
+
+        print(f"Extracting data from source with query: {source_query}")
 
         data = self.source.query(source_query)
-
-        print(data.describe(include='all'))
-        print(data.head())
 
         # load data into destination
         self.dest.insert_data(
@@ -53,5 +56,5 @@ class ETLRunner:
             batch_size=batch_size
         )
 
-        print(f"Inserted {len(data)} records into {schema}.{table_name} from {self.source_name}.")
+        print(f"Inserted {len(data)} records into {schema}.{table_name} from {self.source_name}.\n")
 
