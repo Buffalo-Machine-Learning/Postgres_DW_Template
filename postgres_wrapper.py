@@ -105,12 +105,8 @@ class Postgres:
             where="table_schema = %s AND table_name = %s",
             params=(schema, table)
         )
-
-        # remove s for plural table names
-        if table.endswith('s'):
-            dw_id_name = f"DW_{table[:-1].upper()}_ID"
-        else:
-            dw_id_name = f"DW_{table.upper()}_ID"
+        
+        dw_id_name = f"DW_{table.upper()}_ID"
 
         table_col_set = set(table_cols["column_name"].tolist())
         table_col_set -= {dw_id_name, "DATE_MODIFIED", "DATE_IN"}  # exclude DW surrogate key if present

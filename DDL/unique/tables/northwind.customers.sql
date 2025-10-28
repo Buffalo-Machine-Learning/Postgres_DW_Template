@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS northwind."Customers"
 (
     "DATE_IN" timestamp with time zone NOT NULL DEFAULT now(),
     "DATE_MODIFIED" timestamp with time zone NOT NULL DEFAULT now(),
-    "DW_CUSTOMER_ID" SERIAL PRIMARY KEY,
+    "DW_CUSTOMERS_ID" SERIAL PRIMARY KEY,
     "CustomerID" VARCHAR(5) NOT NULL,
     "CompanyName" VARCHAR(40) NOT NULL,
     "ContactName" VARCHAR(30),

@@ -1,10 +1,10 @@
 -- create table northwind.shippers
-CREATE TABLE IF NOT EXISTS northwind.shippers
+CREATE TABLE IF NOT EXISTS northwind."Shippers"
 (
     "DATE_IN" timestamp with time zone NOT NULL DEFAULT now(),
     "DATE_MODIFIED" timestamp with time zone NOT NULL DEFAULT now(),
-    "dw_shipper_id" SERIAL PRIMARY KEY,
-    ShipperId INT,
-    CompanyName VARCHAR(40) NOT NULL,
-    Phone VARCHAR(24)
+    "DW_SHIPPERS_ID" SERIAL PRIMARY KEY,
+    "ShipperId" INT,
+    "CompanyName" VARCHAR(40) NOT NULL,
+    "Phone" VARCHAR(24)
 );
