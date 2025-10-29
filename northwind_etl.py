@@ -25,3 +25,18 @@ if __name__ == "__main__":
         max_field="OrderID",
         batch_size=5000
     )
+
+    runner.insert_latest(
+        schema="northwind",
+        table_name="Categories",
+        source_query="SELECT * FROM Categories",
+        batch_size=5000
+    )
+
+    runner.insert_latest(
+        schema="northwind",
+        table_name="Products",
+        source_query="SELECT * FROM Products",
+        max_field="ProductID",
+        batch_size=5000
+    )
