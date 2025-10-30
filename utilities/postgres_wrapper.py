@@ -142,43 +142,7 @@ class Postgres:
                     temp_name = f"temp_load_{uuid.uuid4().hex[:8]}"
 
                     try:
-                        # Create temp table with only the columns from our DataFrame
-                        column_list = sql.SQL(', ').join(map(sql.Identifier, columns))
-                        create_temp_sql = sql.SQL("""
-                            CREATE TEMP TABLE {} AS 
-                            SELECT {} 
-                            FROM {}.{} 
-                            WHERE 1=0
-                        """).format(
-                            sql.Identifier(temp_name),
-                            column_list,
-                            sql.Identifier(schema),
-                            sql.Identifier(table)
-                        )
-                        cur.execute(create_temp_sql)
-                        
-                        # Prepare DataFrame for COPY: column names and correct ordering
-                        df_copy = batch.copy()
-                        df_copy = df_copy[columns]
-
-                        # Write CSV into an in-memory buffer; use '\N' to represent NULLs for Postgres COPY
-                        buf = io.StringIO()
-                        df_copy.to_csv(buf, index=False, header=False, na_rep='\\N')
-                        buf.seek(0)
-
-                        # Use psycopg2's copy_expert to feed the CSV
-                        copy_sql = sql.SQL("COPY {} ({}) FROM STDIN WITH (FORMAT csv, NULL '\\N')").format(
-                            sql.Identifier(temp_name),
-                            sql.SQL(', ').join(map(sql.Identifier, columns))
-                        )
-                        cur.copy_expert(copy_sql, buf)
-                        
-                        # Make sure the temporary table was created and data was copied
-                        cur.execute(sql.SQL("SELECT COUNT(*) FROM {}").format(sql.Identifier(temp_name)))
-                        row_count = cur.fetchone()[0]
-                        if row_count == 0:
-                            raise ValueError(f"No data was copied to temporary table {temp_name}")
-
+                        self.create_temp_table(temp_name, columns, cur, batch, table, schema)
                         # Call server-side proc to move data from temp -> real table and log the ingestion.
                         # Procedure signature expected: common.insert_from_temp(schema text, table text, temp_table text, _columns text[], source text)
                         cur.execute(
@@ -259,6 +223,45 @@ class Postgres:
             return float(df.at[0, "max_value"]) if not df.empty else None
 
         return df.at[0, "max_value"] if not df.empty else None
+
+    def create_temp_table(temp_name, columns, cur, batch, table, schema):
+        # Create temp table with only the columns from our DataFrame
+        column_list = sql.SQL(', ').join(map(sql.Identifier, columns))
+        create_temp_sql = sql.SQL("""
+            CREATE TEMP TABLE {} AS 
+            SELECT {} 
+            FROM {}.{} 
+            WHERE 1=0
+        """).format(
+            sql.Identifier(temp_name),
+            column_list,
+            sql.Identifier(schema),
+            sql.Identifier(table)
+        )
+        cur.execute(create_temp_sql)
+        
+        # Prepare DataFrame for COPY: column names and correct ordering
+        df_copy = batch.copy()
+        df_copy = df_copy[columns]
+
+        # Write CSV into an in-memory buffer; use '\N' to represent NULLs for Postgres COPY
+        buf = io.StringIO()
+        df_copy.to_csv(buf, index=False, header=False, na_rep='\\N')
+        buf.seek(0)
+
+        # Use psycopg2's copy_expert to feed the CSV
+        copy_sql = sql.SQL("COPY {} ({}) FROM STDIN WITH (FORMAT csv, NULL '\\N')").format(
+            sql.Identifier(temp_name),
+            sql.SQL(', ').join(map(sql.Identifier, columns))
+        )
+        cur.copy_expert(copy_sql, buf)
+        
+        # Make sure the temporary table was created and data was copied
+        cur.execute(sql.SQL("SELECT COUNT(*) FROM {}").format(sql.Identifier(temp_name)))
+        row_count = cur.fetchone()[0]
+        if row_count == 0:
+            raise ValueError(f"No data was copied to temporary table {temp_name}")
+
 
     def query_builder(
         self,
