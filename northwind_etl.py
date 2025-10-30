@@ -4,9 +4,9 @@ import pandas as pd
 import sys
 sys.dont_write_bytecode = True
 
-from postgres_wrapper import Postgres
+from utilities.postgres_wrapper import Postgres
 from northwind_wrapper import Northwind
-from etl_runner import ETLRunner
+from utilities.etl_runner import ETLRunner
 
 if __name__ == "__main__":
     runner = ETLRunner(Northwind, Postgres)

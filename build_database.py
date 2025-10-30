@@ -8,7 +8,7 @@ Then, default database, schemas, tables, stored procedures, and views are create
 import sys
 sys.dont_write_bytecode = True
 
-from postgres_wrapper import Postgres
+from utilities.postgres_wrapper import Postgres
 import os
 
 import atexit
