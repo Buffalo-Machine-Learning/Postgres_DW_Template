@@ -88,10 +88,9 @@ if __name__ == "__main__":
         batch_size=5000
     )
 
-    runner.insert_latest(
+    runner.truncate_reload(
         schema="northwind",
         table_name="Territories",
         source_query="SELECT * FROM Territories",
-        max_field="TerritoryID",
         batch_size=5000
     )
