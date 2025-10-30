@@ -2,4 +2,7 @@
 *.yaml
 /__pycache__/
 /.vscode/
-test.py
+test*.py
+*.bin
+*.jpg
+*.bmp
