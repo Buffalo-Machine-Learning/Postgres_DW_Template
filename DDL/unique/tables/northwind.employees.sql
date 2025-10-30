@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS northwind."Employees"
     "DATE_IN" timestamp with time zone NOT NULL DEFAULT now(),
     "DATE_MODIFIED" timestamp with time zone NOT NULL DEFAULT now(),
     "DW_EMPLOYEES_ID" SERIAL PRIMARY KEY,
-    "EmployeeId" int,
+    "EmployeeID" int,
     "LastName" VARCHAR(20) NOT NULL,
     "FirstName" VARCHAR(10) NOT NULL,
     "Title" VARCHAR(30),
@@ -20,6 +20,6 @@ CREATE TABLE IF NOT EXISTS northwind."Employees"
     "Extension" VARCHAR(4),
     "Photo" BYTEA,
     "Notes" TEXT,
-    "ReportsTo" INT,
+    "ReportsTo" FLOAT,
     "PhotoPath" VARCHAR(255)
 );
