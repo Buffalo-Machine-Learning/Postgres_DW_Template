@@ -5,6 +5,7 @@ import pandas as pd
 from typing import Any, List
 import io
 import uuid
+from datetime import datetime, timezone
 
 class Postgres:
     def __init__(self, 
@@ -72,14 +73,31 @@ class Postgres:
         table: str,
         source: str = "unknown"
     ):
-        """
-        Truncate the specified table and reload it with new data using stored proc
-        """
+        err_msg = ""
+        success = True
+        start_time = datetime.now(timezone.utc)
+
         with self.conn.cursor() as cur:
-            cur.execute(
-                "CALL common.truncate_table(%s, %s, %s);",
-                (schema, table, source)
-            )
+            try:
+                cur.execute(
+                    "TRUNCATE TABLE %s.%s;",
+                    (schema, table)
+                )
+            
+            except Exception as e:
+                err_msg = e
+                success = False
+
+            finally:
+                self.log_ingestion(
+                    source=source,
+                    table=table,
+                    schema=schema,
+                    start_time=start_time,
+                    success=success,
+                    err_msg=err_msg,
+                    operation="Truncate"
+                )
         
 
     def insert_data(
@@ -137,18 +155,9 @@ class Postgres:
 
                     # Start a fresh transaction for each batch
                     self.conn.rollback()  # Clean slate
-                    
-                    # Unique temp table name (session-local)
-                    temp_name = f"temp_load_{uuid.uuid4().hex[:8]}"
-
+                
                     try:
-                        self.create_temp_table(temp_name, columns, cur, batch, table, schema)
-                        # Call server-side proc to move data from temp -> real table and log the ingestion.
-                        # Procedure signature expected: common.insert_from_temp(schema text, table text, temp_table text, _columns text[], source text)
-                        cur.execute(
-                            "CALL common.insert_data(%s, %s, %s, %s::text[], %s);",
-                            (schema, table, temp_name, columns, source)
-                        )
+                        
                         
                         # If we got here, commit the transaction
                         self.conn.commit()
@@ -210,6 +219,29 @@ class Postgres:
                     (schema, table, source, anyarray_records)
                 )
 
+    def log_ingestion(
+        self,
+        source: str = "unknown",
+        schema: str = "unknown",
+        table: str = "unknown",
+        start_time: datetime = datetime.now(timezone.utc),
+        end_time: datetime = datetime.now(timezone.utc),
+        insert_count: int = 0,
+        update_count: int = 0,
+        success: bool = True,
+        err_msg: str = "",
+        operation: str = 0
+        ):
+        
+        with self.conn.cursor() as cur:
+            cur.execute("CALL common.log_ingestion(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s);",
+                (
+                    source, schema, table,
+                    start_time, end_time,
+                    insert_count, update_count, success, err_msg, operation
+                )
+            )
+
     def get_max_value(self, schema: str, table: str, field: str):
         df = self.query_builder(
             schema=schema,
@@ -223,45 +255,6 @@ class Postgres:
             return float(df.at[0, "max_value"]) if not df.empty else None
 
         return df.at[0, "max_value"] if not df.empty else None
-
-    def create_temp_table(temp_name, columns, cur, batch, table, schema):
-        # Create temp table with only the columns from our DataFrame
-        column_list = sql.SQL(', ').join(map(sql.Identifier, columns))
-        create_temp_sql = sql.SQL("""
-            CREATE TEMP TABLE {} AS 
-            SELECT {} 
-            FROM {}.{} 
-            WHERE 1=0
-        """).format(
-            sql.Identifier(temp_name),
-            column_list,
-            sql.Identifier(schema),
-            sql.Identifier(table)
-        )
-        cur.execute(create_temp_sql)
-        
-        # Prepare DataFrame for COPY: column names and correct ordering
-        df_copy = batch.copy()
-        df_copy = df_copy[columns]
-
-        # Write CSV into an in-memory buffer; use '\N' to represent NULLs for Postgres COPY
-        buf = io.StringIO()
-        df_copy.to_csv(buf, index=False, header=False, na_rep='\\N')
-        buf.seek(0)
-
-        # Use psycopg2's copy_expert to feed the CSV
-        copy_sql = sql.SQL("COPY {} ({}) FROM STDIN WITH (FORMAT csv, NULL '\\N')").format(
-            sql.Identifier(temp_name),
-            sql.SQL(', ').join(map(sql.Identifier, columns))
-        )
-        cur.copy_expert(copy_sql, buf)
-        
-        # Make sure the temporary table was created and data was copied
-        cur.execute(sql.SQL("SELECT COUNT(*) FROM {}").format(sql.Identifier(temp_name)))
-        row_count = cur.fetchone()[0]
-        if row_count == 0:
-            raise ValueError(f"No data was copied to temporary table {temp_name}")
-
 
     def query_builder(
         self,

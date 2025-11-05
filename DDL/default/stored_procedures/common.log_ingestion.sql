@@ -53,23 +53,3 @@ BEGIN
     );
 END;
 $$;
-
-CREATE OR REPLACE PROCEDURE common.log_ingestion_fail(
-    p_source_name  text,
-    p_schema_name  text,
-    p_table_name   text,
-    p_start        timestamptz,
-    p_end          timestamptz,
-    p_error_msg    text,
-    p_type         varchar(50)
-)
-LANGUAGE plpgsql
-AS $$
-BEGIN
-    CALL common.log_ingestion(
-        p_source_name, p_schema_name, p_table_name,
-        p_start, p_end, 0, 0,
-        FALSE, p_error_msg, p_type
-    );
-END;
-$$;
