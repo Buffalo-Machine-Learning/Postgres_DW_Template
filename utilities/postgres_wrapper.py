@@ -106,7 +106,8 @@ class Postgres:
         table: str,
         data: pd.DataFrame,
         source: str = "unknown",
-        batch_size: int = 10_000
+        batch_size: int = 10_000,
+        operation: str = "insert"
     ):
         """
         Insert data from a DataFrame into the specified table in batches using COPY into a temp table
@@ -146,9 +147,13 @@ class Postgres:
         old_autocommit = self.conn.autocommit
         self.conn.autocommit = False  # We need transaction control
         
+        start_time = datetime.now(timezone.utc)
+        success = True
+        err_msg = ""
+        n = len(data)
+
         try:
             with self.conn.cursor() as cur:
-                n = len(data)
                 for start in range(0, n, batch_size):
                     end = min(start + batch_size, n)
                     batch = data.iloc[start:end]
@@ -165,10 +170,26 @@ class Postgres:
                     except Exception as e:
                         self.conn.rollback()
                         raise e
-                        
+        
+        except Exception as ex:
+            n = 0
+            success = False
+            err_msg = ex    
+
         finally:
             # Restore original autocommit state
             self.conn.autocommit = old_autocommit
+
+            self.log_ingestion(
+                source=source,
+                schema=schema,
+                table=table,
+                success=success,
+                err_msg=err_msg,
+                operation=operation,
+                insert_count=n,
+                start_time=start_time
+            )
 
         # Commit (if not autocommit)
         self.conn.commit()
@@ -179,7 +200,8 @@ class Postgres:
         table: str,
         data: pd.DataFrame,
         source: str = "unknown",
-        batch_size: int = 10000
+        batch_size: int = 10000,
+        operation: int = "update"
     ):
         """Update data in the specified table from a DataFrame in batches using update_data stored procedure."""
         if data.empty:
