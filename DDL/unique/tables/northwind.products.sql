@@ -16,3 +16,8 @@ CREATE TABLE IF NOT EXISTS northwind."Products"
     "ReorderLevel" SMALLINT DEFAULT 0,
     "Discontinued" BOOLEAN NOT NULL DEFAULT FALSE
 );
+
+CREATE TRIGGER trg_touch_date_modified_products
+BEFORE UPDATE ON northwind."Products"
+FOR EACH ROW
+EXECUTE FUNCTION common.touch_date_modified();

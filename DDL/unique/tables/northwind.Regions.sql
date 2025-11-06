@@ -8,3 +8,8 @@ CREATE TABLE IF NOT EXISTS northwind."Regions"
     "RegionID" INT,
     "RegionDescription" VARCHAR(50) NOT NULL
 );
+
+CREATE TRIGGER trg_touch_date_modified_regions
+BEFORE UPDATE ON northwind."Regions"
+FOR EACH ROW
+EXECUTE FUNCTION common.touch_date_modified();

@@ -11,3 +11,8 @@ CREATE TABLE IF NOT EXISTS northwind."Order_Details"
     "Quantity" INT NOT NULL,
     "Discount" REAL NOT NULL
 );
+
+CREATE TRIGGER trg_touch_date_modified_order_details
+BEFORE UPDATE ON northwind."Order_Details"
+FOR EACH ROW
+EXECUTE FUNCTION common.touch_date_modified();

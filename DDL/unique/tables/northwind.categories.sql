@@ -10,3 +10,8 @@ CREATE TABLE IF NOT EXISTS northwind."Categories"
     "Description" TEXT,
     "Picture" BYTEA
 );
+
+CREATE TRIGGER trg_touch_date_modified_categories
+BEFORE UPDATE ON northwind."Categories"
+FOR EACH ROW
+EXECUTE FUNCTION common.touch_date_modified();

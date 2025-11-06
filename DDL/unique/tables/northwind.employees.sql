@@ -23,3 +23,8 @@ CREATE TABLE IF NOT EXISTS northwind."Employees"
     "ReportsTo" FLOAT,
     "PhotoPath" VARCHAR(255)
 );
+
+CREATE TRIGGER trg_touch_date_modified_employees
+BEFORE UPDATE ON northwind."Employees"
+FOR EACH ROW
+EXECUTE FUNCTION common.touch_date_modified();

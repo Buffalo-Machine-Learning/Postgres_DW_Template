@@ -16,3 +16,8 @@ CREATE TABLE IF NOT EXISTS northwind."Suppliers"
     "Phone" VARCHAR(24),
     "Fax" VARCHAR(24)
 );
+
+CREATE TRIGGER trg_touch_date_modified_suppliers
+BEFORE UPDATE ON northwind."Suppliers"
+FOR EACH ROW
+EXECUTE FUNCTION common.touch_date_modified();

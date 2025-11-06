@@ -7,3 +7,8 @@ CREATE TABLE IF NOT EXISTS northwind."Territories"
     "TerritoryID" VARCHAR(20),
     "TerritoryDescription" VARCHAR(50) NOT NULL
 );
+
+CREATE TRIGGER trg_touch_date_modified_territories
+BEFORE UPDATE ON northwind."Territories"
+FOR EACH ROW
+EXECUTE FUNCTION common.touch_date_modified();

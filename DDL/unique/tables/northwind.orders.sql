@@ -20,3 +20,8 @@ CREATE TABLE IF NOT EXISTS northwind."Orders"
     "ShipPostalCode" VARCHAR(10),
     "ShipCountry" VARCHAR(15) NOT NULL
 );
+
+CREATE TRIGGER trg_touch_date_modified_orders
+BEFORE UPDATE ON northwind."Orders"
+FOR EACH ROW
+EXECUTE FUNCTION common.touch_date_modified();
